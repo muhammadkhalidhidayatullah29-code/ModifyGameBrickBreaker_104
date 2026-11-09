@@ -4,7 +4,7 @@ import random
 pygame.init()
 
 # Ukuran Area (800x600)
-WIDTH, HEIGHT = 800, 600
+WIDTH, HEIGHT = 800, 800
 
 # Tema Gelap & Warna Neon Menyala (Deep Space & Cyberpunk)
 BG_COLOR = (8, 8, 14)           # Hitam pekat kebiruan
@@ -394,3 +394,4 @@ def main():
 if __name__ == "__main__":
     main()
     pygame.quit()
+    
