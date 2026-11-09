@@ -23,7 +23,7 @@ BLOCK_COLORS = [
 font = pygame.font.Font('freesansbold.ttf', 16)
 
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Block Breaker - Spacious Neon Edition")
+pygame.display.set_caption("Block Breaker - Perfect Margin Neon Edition")
 
 clock = pygame.time.Clock()
 FPS = 60
@@ -32,28 +32,22 @@ FPS = 60
 # Fungsi Helper untuk Membuat Efek Cahaya Neon Berpendar (Glow)
 def draw_glowing_rect(surf, color, rect, border_radius=4):
     x, y, w, h = rect
-    # Layer pendaran luar (glow tipis transparan)
     glow_surf = pygame.Surface((w + 10, h + 10), pygame.SRCALPHA)
     pygame.draw.rect(glow_surf, (*color, 50), (0, 0, w + 10, h + 10), border_radius=border_radius + 2)
     surf.blit(glow_surf, (x - 5, y - 5))
     
-    # Inti balok yang terang
     pygame.draw.rect(surf, color, rect, border_radius=border_radius)
-    # Garis highlight putih di tengah agar tampak seperti tabung lampu menyala
     highlight_rect = pygame.Rect(x + 2, y + 2, w - 4, 2)
     pygame.draw.rect(surf, (255, 255, 255), highlight_rect, border_radius=1)
 
 
 def draw_glowing_circle(surf, color, center, radius):
     cx, cy = center
-    # Pendaran luar bola
     glow_surf = pygame.Surface((radius * 4, radius * 4), pygame.SRCALPHA)
     pygame.draw.circle(glow_surf, (*color, 80), (radius * 2, radius * 2), radius * 1.6)
     surf.blit(glow_surf, (cx - radius * 2, cy - radius * 2))
     
-    # Inti bola
     pygame.draw.circle(surf, color, center, radius)
-    # Titik cahaya putih pada bola
     pygame.draw.circle(surf, (255, 255, 255), (cx - 2, cy - 2), max(1, radius // 3))
 
 
@@ -73,10 +67,11 @@ class Striker:
     def update(self, xFac):
         self.posx += self.speed * xFac
 
-        if self.posx <= 0:
-            self.posx = 0
-        elif self.posx + self.width >= WIDTH:
-            self.posx = WIDTH - self.width
+        # Batas pinggir aplikasi diberi jarak aman agar striker tidak mentok luar
+        if self.posx <= 35:
+            self.posx = 35
+        elif self.posx + self.width >= WIDTH - 35:
+            self.posx = WIDTH - 35 - self.width
 
     def reset_size(self):
         self.width = self.width_base
@@ -109,7 +104,7 @@ class Block:
         return self.health
 
 
-# PowerUp Class (6 Macam Skill Neon)
+# PowerUp Class
 class PowerUp:
     def __init__(self, posx, posy, type_name):
         self.posx = posx
@@ -124,22 +119,25 @@ class PowerUp:
 
     def display(self):
         if self.type_name == 'multi':
-            color = (255, 230, 0)   # Kuning Menyala (x2)
+            color = (255, 230, 0)   # Kuning (x2)
             label = "x2"
+        elif self.type_name == 'triple':
+            color = (255, 100, 255) # Pink (x3)
+            label = "x3"
         elif self.type_name == 'fast':
-            color = (255, 120, 0)   # Oranye Menyala (S+)
+            color = (255, 120, 0)   # Oranye (S+)
             label = "S+"
         elif self.type_name == 'expand':
-            color = (200, 0, 255)   # Ungu Menyala (W+)
+            color = (200, 0, 255)   # Ungu (W+)
             label = "W+"
         elif self.type_name == 'slow':
-            color = (0, 200, 255)   # Biru Muda Menyala (S-)
+            color = (0, 200, 255)   # Biru (S-)
             label = "S-"
         elif self.type_name == 'shrink':
-            color = (255, 40, 80)   # Merah Menyala (W-)
+            color = (255, 40, 80)   # Merah (W-)
             label = "W-"
         else:
-            color = (0, 255, 100)   # Hijau Menyala (+L)
+            color = (0, 255, 100)   # Hijau (+L)
             label = "+L"
 
         rect = (self.posx, self.posy, self.width, self.height)
@@ -170,10 +168,16 @@ class Ball:
         self.posx += self.xFac * self.speed
         self.posy += self.yFac * self.speed
 
-        if self.posx - self.radius <= 0 or self.posx + self.radius >= WIDTH:
+        # Dinding pembatas bola disesuaikan dengan garis tepi dalam (35px)
+        if self.posx - self.radius <= 35:
+            self.posx = 35 + self.radius
+            self.xFac *= -1
+        elif self.posx + self.radius >= WIDTH - 35:
+            self.posx = WIDTH - 35 - self.radius
             self.xFac *= -1
 
-        if self.posy - self.radius <= 0:
+        if self.posy - self.radius <= 70:  # Batas atas di bawah HUD/garis
+            self.posy = 70 + self.radius
             self.yFac *= -1
 
         if self.posy >= HEIGHT:
@@ -199,14 +203,16 @@ def collisionChecker(rect1, rect2):
     return rect1.colliderect(rect2)
 
 
-# Fungsi populate blocks dengan margin agar tidak mepet dinding & antar balok
+# Fungsi populate blocks dengan margin kanan & kiri yang lebih aman (tidak menempel garis)
 def populateBlocks(blockWidth, blockHeight, horizontalGap, verticalGap):
     listOfBlocks = []
-    start_x = 55  # Jarak margin dari kiri jendela aplikasi
-    start_y = 75  # Jarak margin dari atas (di bawah HUD)
-    end_y = int(HEIGHT * 0.45)  # Batas bawah area balok
+    start_x = 50   # Jarak aman dari sisi kiri bingkai
+    end_x = WIDTH - 50  # Jarak aman dari sisi kanan bingkai
+    start_y = 90   # Jarak dari bawah HUD
+    end_y = int(HEIGHT * 0.48)
     
-    for i in range(start_x, WIDTH - 55, blockWidth + horizontalGap):
+    # Loop menggunakan range yang diberi batasan tegas agar tidak melewati end_x
+    for i in range(start_x, end_x - blockWidth + 1, blockWidth + horizontalGap):
         for j in range(start_y, end_y, blockHeight + verticalGap):
             listOfBlocks.append(
                 Block(i, j, blockWidth, blockHeight, random.choice(BLOCK_COLORS))
@@ -235,9 +241,9 @@ def main():
 
     balls = [Ball(WIDTH // 2, HEIGHT // 2, 8, 4, BALL_COLOR)]
 
-    # Ukuran balok dan jarak renggang antar balok (gap) disesuaikan agar tidak saling menempel
-    blockWidth, blockHeight = 55, 18
-    horizontalGap, verticalGap = 10, 10
+    # Ukuran balok dan jarak renggang disesuaikan agar pas di tengah
+    blockWidth, blockHeight = 48, 18
+    horizontalGap, verticalGap = 12, 10
 
     listOfBlocks = populateBlocks(blockWidth, blockHeight, horizontalGap, verticalGap)
     listOfPowerUps = []
@@ -246,17 +252,19 @@ def main():
     while running:
         screen.fill(BG_COLOR)
 
-        # Garis batas atas HUD
-        pygame.draw.line(screen, (30, 30, 50), (0, 50), (WIDTH, 50), 2)
+        # Menggambar Bingkai/Border Area Bermain di dalam Jendela Aplikasi (Margin 30px dari tepi layar)
+        pygame.draw.rect(screen, (30, 30, 50), (30, 70, WIDTH - 60, HEIGHT - 90), 2, border_radius=6)
+        # Garis pembatas HUD bagian atas
+        pygame.draw.line(screen, (30, 30, 50), (0, 60), (WIDTH, 60), 2)
 
         # Render Score, Lives & Total Bola Teks
         scoreText = font.render(f"SCORE : {score}", True, TEXT_COLOR)
         livesText = font.render(f"LIVES : {lives}", True, TEXT_COLOR)
         ballsText = font.render(f"BALLS : {len(balls)}", True, TEXT_COLOR)
         
-        screen.blit(scoreText, (30, 15))
-        screen.blit(ballsText, (WIDTH // 2 - 45, 15))
-        screen.blit(livesText, (WIDTH - 120, 15))
+        screen.blit(scoreText, (30, 20))
+        screen.blit(ballsText, (WIDTH // 2 - 45, 20))
+        screen.blit(livesText, (WIDTH - 120, 20))
 
         # Repopulate blocks if empty
         if not listOfBlocks:
@@ -309,9 +317,9 @@ def main():
 
                     if block.getHealth() <= 0:
                         listOfBlocks.remove(block)
-                        # 30% peluang menjatuhkan skill neon dari 6 jenis skill
-                        if random.random() < 0.3:
-                            p_type = random.choice(['multi', 'fast', 'expand', 'slow', 'shrink', 'life'])
+                        # Peluang skill muncul 15% (0.15)
+                        if random.random() < 0.15:
+                            p_type = random.choice(['multi', 'triple', 'fast', 'expand', 'slow', 'shrink', 'life'])
                             listOfPowerUps.append(PowerUp(block.posx + block.width // 2, block.posy, p_type))
 
             lifeLost = ball.update()
@@ -323,7 +331,7 @@ def main():
             striker.reset_size()
             balls.append(Ball(WIDTH // 2, HEIGHT // 2, 8, 4, BALL_COLOR))
 
-        # Update Power-Ups & Efek Keenam Skill
+        # Update Power-Ups & Efek Skill
         for pUp in listOfPowerUps[:]:
             pUp.update()
             if collisionChecker(striker.getRect(), pUp.getRect()):
@@ -331,6 +339,14 @@ def main():
                     new_balls = []
                     for b in balls:
                         new_balls.append(Ball(b.posx, b.posy, b.radius, b.speed, b.color, xFac=1, yFac=-1))
+                        new_balls.append(Ball(b.posx, b.posy, b.radius, b.speed, b.color, xFac=-1, yFac=-1))
+                    balls.extend(new_balls)
+                
+                elif pUp.type_name == 'triple':
+                    new_balls = []
+                    for b in balls:
+                        new_balls.append(Ball(b.posx, b.posy, b.radius, b.speed, b.color, xFac=1, yFac=-1))
+                        new_balls.append(Ball(b.posx, b.posy, b.radius, b.speed, b.color, xFac=0.5, yFac=-1))
                         new_balls.append(Ball(b.posx, b.posy, b.radius, b.speed, b.color, xFac=-1, yFac=-1))
                     balls.extend(new_balls)
                 
@@ -342,6 +358,8 @@ def main():
                     striker.width = min(220, striker.width + 40)
 
                 elif pUp.type_name == 'slow':
+                    for b.speed in balls: # Perbaikan kecil pada iterasi kecepatan bola
+                        pass
                     for b in balls:
                         b.speed = max(2.0, b.speed - 1.5)
 
